@@ -35,6 +35,7 @@ TRANSLATOR:
   Rules:
     global:
       - { action: accept, from: "(?i)^RK" }
+      - { action: accept, from: "(?i)^LLM" }
     private:
       - { transform: unexport }
     post-global:
