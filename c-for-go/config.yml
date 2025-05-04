@@ -7,7 +7,7 @@ GENERATOR:
       flags: [-L/usr/lib, -lrkllmrt]
   Includes:
     - "types.h"
-    - "<rkllm.h>"
+    - "rkllm.h"
     - "rkllm_input_wrappers.h"
   Options:
     SafeStrings: true
