@@ -25,12 +25,10 @@ func AllocLLMHandles(n int) ([]*generated.LLMHandle, func(), error) {
 	slice := unsafe.Slice((**generated.LLMHandle)(cArr), n)
 
 	for i := range slice {
-		var h generated.LLMHandle
-		slice[i] = &h
+		slice[i] = new(generated.LLMHandle)
 	}
 
 	cleanup := func() { C.free(cArr) }
-
 	return slice, cleanup, nil
 }
 
