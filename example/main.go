@@ -1,17 +1,12 @@
 package main
 
-/*
-#include <stdlib.h>
-*/
-import "C"
-
 import (
 	"fmt"
 	"os"
 	"strings"
-	"unsafe"
 
 	"github.com/tech-arch1tect/rknn-llm-go/generated"
+	"github.com/tech-arch1tect/rknn-llm-go/utilities"
 )
 
 func main() {
@@ -54,30 +49,17 @@ func main() {
 	}
 	params := []generated.RKLLMParam{param}
 
-	var h generated.LLMHandle
-	cArr := C.calloc(1, C.size_t(unsafe.Sizeof(h)))
-	if cArr == nil {
-		fmt.Fprintln(os.Stderr, "calloc failed")
+	handles, cleanup, err := utilities.AllocLLMHandles(1)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
-	defer C.free(cArr)
-
-	*(**generated.LLMHandle)(cArr) = &h
-
-	handles := unsafe.Slice((**generated.LLMHandle)(cArr), 1)
+	defer cleanup()
 
 	var output strings.Builder
 	done := make(chan struct{})
 
-	cb := generated.LLMResultCallback(func(res *generated.RKLLMResult, _ unsafe.Pointer, state generated.LLMCallState) {
-		if res == nil {
-			close(done)
-			return
-		}
-		res.Deref()
-
-		p := (*C.char)(unsafe.Pointer(res.Text))
-		s := C.GoString(p)
+	cb := utilities.NewCallbackHelper(done, func(s string, state generated.LLMCallState) {
 		output.WriteString(s)
 		fmt.Print(s)
 	})
