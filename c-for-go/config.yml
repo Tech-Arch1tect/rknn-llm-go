@@ -32,6 +32,11 @@ TRANSLATOR:
   ConstRules:
     defines: expand
     enum: expand
+  PtrTips:
+    function:
+      - { target: "LLMResultCallback$", self: arr, tips: [sref, ref, ref] }
+    struct:
+      - { target: "RKLLMResult$", tips: [ref] }
   Rules:
     global:
       - { action: accept, from: "(?i)^RK" }
