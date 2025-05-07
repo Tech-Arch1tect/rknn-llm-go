@@ -6,6 +6,7 @@ package utilities
 import "C"
 import (
 	"fmt"
+	"runtime/cgo"
 	"unsafe"
 
 	"github.com/tech-arch1tect/rknn-llm-go/generated"
@@ -13,7 +14,7 @@ import (
 
 func AllocLLMHandles(n int) ([]*generated.LLMHandle, func(), error) {
 	if n <= 0 {
-		return nil, nil, fmt.Errorf("n must be ≥ 1, got %d", n)
+		return nil, nil, fmt.Errorf("n must be ≥ 1, got %d", n)
 	}
 
 	ptrSize := unsafe.Sizeof((*generated.LLMHandle)(nil))
@@ -27,27 +28,30 @@ func AllocLLMHandles(n int) ([]*generated.LLMHandle, func(), error) {
 	for i := range slice {
 		slice[i] = new(generated.LLMHandle)
 	}
-
-	cleanup := func() { C.free(cArr) }
-	return slice, cleanup, nil
+	return slice, func() { C.free(cArr) }, nil
 }
 
-func NewCallbackHelper(done chan struct{}, callback func(string, generated.LLMCallState)) generated.LLMResultCallback {
-	return generated.LLMResultCallback(func(
-		res *generated.RKLLMResult,
-		_ unsafe.Pointer,
-		state generated.LLMCallState,
-	) {
-		if res == nil {
-			close(done)
-			return
-		}
+type RunContext struct {
+	Done     chan struct{}
+	Callback func(text string, state generated.LLMCallState)
+}
 
-		res.Deref()
+func DynamicResultCallback(
+	res *generated.RKLLMResult,
+	userdata unsafe.Pointer,
+	state generated.LLMCallState,
+) {
+	h := cgo.Handle(uintptr(userdata))
+	ctx := h.Value().(RunContext)
 
-		p := (*C.char)(unsafe.Pointer(res.Text))
-		s := C.GoString(p)
+	if res == nil {
+		close(ctx.Done)
+		h.Delete()
+		return
+	}
 
-		callback(s, state)
-	})
+	res.Deref()
+	p := (*C.char)(unsafe.Pointer(res.Text))
+	text := C.GoString(p)
+	ctx.Callback(text, state)
 }

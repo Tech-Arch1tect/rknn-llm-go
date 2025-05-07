@@ -3,7 +3,9 @@ package main
 import (
 	"fmt"
 	"os"
+	"runtime/cgo"
 	"strings"
+	"unsafe"
 
 	"github.com/tech-arch1tect/rknn-llm-go/generated"
 	"github.com/tech-arch1tect/rknn-llm-go/utilities"
@@ -24,7 +26,6 @@ func main() {
 
 	def := generated.Rkllm_createDefaultParam()
 	def.Deref()
-
 	const cpuCount = 8
 	param := generated.RKLLMParam{
 		Model_path:         append([]byte(mp), 0),
@@ -41,7 +42,7 @@ func main() {
 		Mirostat:           def.Mirostat,
 		Mirostat_tau:       def.Mirostat_tau,
 		Mirostat_eta:       def.Mirostat_eta,
-		Skip_special_token: def.Skip_special_token,
+		Skip_special_token: true,
 		Extend_param: generated.RKLLMExtendParam{
 			Enabled_cpus_num:  int8(cpuCount),
 			Enabled_cpus_mask: uint32((1 << cpuCount) - 1),
@@ -56,22 +57,30 @@ func main() {
 	}
 	defer cleanup()
 
-	var output strings.Builder
-	done := make(chan struct{})
-
-	cb := utilities.NewCallbackHelper(done, func(s string, state generated.LLMCallState) {
-		output.WriteString(s)
-		fmt.Print(s)
-	})
-
-	if rc := generated.Rkllm_init(handles, params, cb); rc != 0 {
+	if rc := generated.Rkllm_init(
+		handles,
+		params,
+		generated.LLMResultCallback(utilities.DynamicResultCallback),
+	); rc != 0 {
 		fmt.Fprintf(os.Stderr, "init failed (rc=%d)\n", rc)
 		os.Exit(1)
 	}
 
-	prompt := "Tell me a short joke"
 	inputs := []generated.RKLLMInput{{Input_type: generated.RKLLM_INPUT_PROMPT}}
-	generated.RKLLMInput_SetPrompt(inputs, prompt)
+	infer := []generated.RKLLMInferParam{{Mode: generated.RKLLM_INFER_GENERATE}}
+	var output strings.Builder
+
+	done1 := make(chan struct{})
+	ctx1 := utilities.RunContext{
+		Done: done1,
+		Callback: func(text string, _ generated.LLMCallState) {
+			output.WriteString(text)
+			fmt.Print(text)
+		},
+	}
+	handle1 := cgo.NewHandle(ctx1)
+
+	generated.RKLLMInput_SetPrompt(inputs, "Tell me a short joke")
 	// or to use tokens
 	//inputs = []generated.RKLLMInput{{Input_type: generated.RKLLM_INPUT_TOKENS}}
 	//generated.RKLLMInput_SetToken(inputs, generated.RKLLMTokenInput{
@@ -79,17 +88,48 @@ func main() {
 	//	N_tokens:  3,
 	//})
 
-	infer := []generated.RKLLMInferParam{{Mode: generated.RKLLM_INFER_GENERATE}}
+	fmt.Println(">>> First inference …")
+	if rc := generated.Rkllm_run(
+		handles[0],
+		inputs,
+		infer,
+		unsafe.Pointer(handle1),
+	); rc != 0 {
+		fmt.Fprintf(os.Stderr, "run failed (rc=%d)\n", rc)
+		os.Exit(1)
+	}
+	<-done1
+	fmt.Println("\n\n=== Joke complete ===")
 
-	fmt.Println(">>> Running inference …")
-	if rc := generated.Rkllm_run(handles[0], inputs, infer, nil); rc != 0 {
-		fmt.Fprintf(os.Stderr, "run_async failed (rc=%d)\n", rc)
+	if rc := generated.Rkllm_clear_kv_cache(handles[0], 1); rc != 0 {
+		fmt.Fprintf(os.Stderr, "clear_kv_cache failed (rc=%d)\n", rc)
 		os.Exit(1)
 	}
 
-	<-done
-	fmt.Println("\n\n=== Full output ===")
-	fmt.Println(output.String())
+	output.Reset()
+	done2 := make(chan struct{})
+	ctx2 := utilities.RunContext{
+		Done: done2,
+		Callback: func(text string, _ generated.LLMCallState) {
+			output.WriteString(text)
+			fmt.Print(text)
+		},
+	}
+	handle2 := cgo.NewHandle(ctx2)
+
+	generated.RKLLMInput_SetPrompt(inputs, "Now tell me a short riddle")
+	fmt.Println("\n>>> Second inference …")
+	if rc := generated.Rkllm_run(
+		handles[0],
+		inputs,
+		infer,
+		unsafe.Pointer(handle2),
+	); rc != 0 {
+		fmt.Fprintf(os.Stderr, "run failed (rc=%d)\n", rc)
+		os.Exit(1)
+	}
+	<-done2
+	fmt.Println("\n\n=== Riddle complete ===")
 
 	if rc := generated.Rkllm_destroy(handles[0]); rc != 0 {
 		fmt.Fprintf(os.Stderr, "destroy failed (rc=%d)\n", rc)
