@@ -31,7 +31,7 @@ func main() {
 		Model_path:         append([]byte(mp), 0),
 		Is_async:           true,
 		Max_context_len:    def.Max_context_len,
-		Max_new_tokens:     def.Max_new_tokens,
+		Max_new_tokens:     100,
 		Top_k:              def.Top_k,
 		N_keep:             def.N_keep,
 		Top_p:              def.Top_p,
