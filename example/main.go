@@ -65,8 +65,8 @@ func main() {
 		os.Exit(1)
 	}
 
-	inputs := []generated.RKLLMInput{{Input_type: generated.RKLLM_INPUT_PROMPT}}
-	infer := []generated.RKLLMInferParam{{Mode: generated.RKLLM_INFER_GENERATE}}
+	input := generated.RKLLMInput{Input_type: generated.RKLLM_INPUT_PROMPT}
+	infer := generated.RKLLMInferParam{Mode: generated.RKLLM_INFER_GENERATE}
 	var output strings.Builder
 
 	done1 := make(chan struct{})
@@ -79,7 +79,7 @@ func main() {
 	}
 	handle1 := cgo.NewHandle(ctx1)
 
-	generated.RKLLMInput_SetPrompt(inputs, "Tell me a short joke")
+	generated.RKLLMInput_SetPrompt(&input, "Tell me a short joke")
 	// or to use tokens
 	//inputs = []generated.RKLLMInput{{Input_type: generated.RKLLM_INPUT_TOKENS}}
 	//generated.RKLLMInput_SetToken(inputs, generated.RKLLMTokenInput{
@@ -90,8 +90,8 @@ func main() {
 	fmt.Println(">>> First inference …")
 	if rc := generated.Rkllm_run(
 		handles[0],
-		inputs,
-		infer,
+		&input,
+		&infer,
 		unsafe.Pointer(handle1),
 	); rc != 0 {
 		fmt.Fprintf(os.Stderr, "run failed (rc=%d)\n", rc)
@@ -116,12 +116,12 @@ func main() {
 	}
 	handle2 := cgo.NewHandle(ctx2)
 
-	generated.RKLLMInput_SetPrompt(inputs, "Now tell me a short riddle")
+	generated.RKLLMInput_SetPrompt(&input, "Now tell me a short riddle")
 	fmt.Println("\n>>> Second inference …")
 	if rc := generated.Rkllm_run(
 		handles[0],
-		inputs,
-		infer,
+		&input,
+		&infer,
 		unsafe.Pointer(handle2),
 	); rc != 0 {
 		fmt.Fprintf(os.Stderr, "run failed (rc=%d)\n", rc)
