@@ -35,6 +35,7 @@ TRANSLATOR:
   PtrTips:
     function:
       - { target: "LLMResultCallback$", self: arr, tips: [sref, ref, ref] }
+      - { target: "rkllm_init$", tips: [sref, sref, sref] }
     struct:
       - { target: "RKLLMResult$", tips: [ref] }
   Rules:
