@@ -48,7 +48,6 @@ func main() {
 			Enabled_cpus_mask: uint32((1 << cpuCount) - 1),
 		},
 	}
-	params := []generated.RKLLMParam{param}
 
 	handles, cleanup, err := utilities.AllocLLMHandles(1)
 	if err != nil {
@@ -58,8 +57,8 @@ func main() {
 	defer cleanup()
 
 	if rc := generated.Rkllm_init(
-		handles,
-		params,
+		&handles[0],
+		&param,
 		generated.LLMResultCallback(utilities.DynamicResultCallback),
 	); rc != 0 {
 		fmt.Fprintf(os.Stderr, "init failed (rc=%d)\n", rc)
