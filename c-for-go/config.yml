@@ -36,6 +36,9 @@ TRANSLATOR:
     function:
       - { target: "LLMResultCallback$", self: arr, tips: [sref, ref, ref] }
       - { target: "rkllm_init$", tips: [sref, sref, sref] }
+      - { target: "RKLLMInput_SetPrompt$", tips: [sref, sref] }
+      - { target: "RKLLMInput_SetToken$", tips: [sref, sref] }
+      - { target: "rkllm_run$", tips: [sref, sref, sref, sref] }
     struct:
       - { target: "RKLLMResult$", tips: [ref] }
   Rules:
